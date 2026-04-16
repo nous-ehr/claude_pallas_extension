@@ -18,11 +18,17 @@ export interface ServerConfig {
 
 function resolveKbPath(): string {
   // Priority order:
-  // 1. PALLAS_KB_PATH environment variable
-  // 2. Default: ~/pallas-kb
+  // 1. PALLAS_KB_PATH environment variable (if it exists on disk)
+  // 2. ./data relative to cwd (for Azure App Service deployments)
+  // 3. Default: ~/pallas-kb
   const envPath = process.env.PALLAS_KB_PATH;
   if (envPath && existsSync(envPath)) {
     return envPath;
+  }
+  // Azure App Service: cwd is /home/site/wwwroot, data/ is a sibling
+  const cwdData = join(process.cwd(), 'data');
+  if (existsSync(cwdData)) {
+    return cwdData;
   }
   const defaultPath = join(homedir(), 'pallas-kb');
   return defaultPath;
