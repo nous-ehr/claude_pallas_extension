@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "athena-tools": {
+      "command": "node",
+      "args": ["D:/pallas_claude_extension/packages/mcp-server/dist/server.cjs"],
+      "env": {
+        "PALLAS_KB_PATH": "D:/pallas_claude_extension/data",
+        "PALLAS_LOG_LEVEL": "info"
+      }
+    }
+  },
+  "permissions": {
+    "allow": [
+      "mcp__athena-tools__athena_search_kb",
+      "mcp__athena-tools__athena_explain_view",
+      "mcp__athena-tools__athena_explain_join",
+      "mcp__athena-tools__athena_diagnose_error",
+      "mcp__athena-tools__athena_explain_workflow",
+      "mcp__athena-tools__athena_suggest_workflow"
+    ]
+  }
+}

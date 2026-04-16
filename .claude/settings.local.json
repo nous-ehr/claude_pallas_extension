@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(pnpm install *)",
+      "Bash(pnpm build *)",
+      "Bash(PALLAS_KB_PATH=\"D:/pallas_claude_extension/data\" PALLAS_LOG_LEVEL=info timeout 5 node packages/mcp-server/dist/server.js)",
+      "Bash(PALLAS_KB_PATH=\"D:/pallas_claude_extension/data\" PALLAS_LOG_LEVEL=info timeout 5 node packages/mcp-server/dist/server.cjs)"
+    ]
+  }
+}
