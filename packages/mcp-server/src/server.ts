@@ -105,6 +105,9 @@ async function startHttp() {
         kbFileExpected: kbFile,
         kbFileExists: existsSync(kbFile),
         cwd: process.cwd(),
+        cwdContents: require('fs').readdirSync(process.cwd()),
+        cwdDataExists: existsSync(join(process.cwd(), 'data')),
+        cwdDataKbExists: existsSync(join(process.cwd(), 'data', 'kb.json')),
         env_PALLAS_KB_PATH: process.env.PALLAS_KB_PATH ?? '(not set)',
       },
     });
