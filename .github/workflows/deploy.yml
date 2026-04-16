@@ -47,4 +47,16 @@ jobs:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: deploy
-          restart: true
+
+      - name: Restart App Service
+        run: |
+          # Extract credentials from publish profile and call restart API
+          PUBLISH_PROFILE='${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}'
+          USERNAME=$(echo "$PUBLISH_PROFILE" | grep -oP 'userName="\K[^"]+' | head -1)
+          PASSWORD=$(echo "$PUBLISH_PROFILE" | grep -oP 'userPWD="\K[^"]+' | head -1)
+          curl -s -X POST "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/restart" \
+            -u "$USERNAME:$PASSWORD" \
+            --max-time 30 || echo "Restart request sent"
+          echo "Waiting for app to restart..."
+          sleep 15
+          curl -s --max-time 30 "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health" || echo "Health check pending"
