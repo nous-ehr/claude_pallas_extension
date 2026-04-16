@@ -7,6 +7,7 @@ import { handleDiagnoseError, DIAGNOSE_ERROR_DEF } from './diagnoseError.js';
 import { handleExplainWorkflow, EXPLAIN_WORKFLOW_DEF } from './explainWorkflow.js';
 import { handleSuggestWorkflow, SUGGEST_WORKFLOW_DEF } from './suggestWorkflow.js';
 import { handleSubmitFeedback, SUBMIT_FEEDBACK_DEF } from './submitFeedback.js';
+import { handleListCandidates, LIST_CANDIDATES_DEF, handleReviewCandidate, REVIEW_CANDIDATE_DEF } from './reviewCandidates.js';
 import { withEventCapture } from '../learning/eventCapture.js';
 
 export const TOOL_DEFINITIONS: Tool[] = [
@@ -17,6 +18,8 @@ export const TOOL_DEFINITIONS: Tool[] = [
   EXPLAIN_WORKFLOW_DEF,
   SUGGEST_WORKFLOW_DEF,
   SUBMIT_FEEDBACK_DEF,
+  LIST_CANDIDATES_DEF,
+  REVIEW_CANDIDATE_DEF,
 ];
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult>;
@@ -34,6 +37,10 @@ export function registerTools(kb: KnowledgeBase): Map<string, ToolHandler> {
 
   // Feedback tool — not wrapped with event capture (it IS the learning loop)
   handlers.set('athena_submit_feedback', handleSubmitFeedback);
+
+  // Review tools — for human review of KB update candidates
+  handlers.set('athena_list_candidates', handleListCandidates);
+  handlers.set('athena_review_candidate', handleReviewCandidate);
 
   return handlers;
 }

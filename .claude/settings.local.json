@@ -30,7 +30,11 @@
       "Bash(grep -oE '\"joinSteps\":\\\\[.{0,100}')",
       "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql container create --account-name pallas-kb-cosmos --resource-group rg-pallas-claude --database-name pallas-kb --name learning-events --partition-key-path /toolName -o json)",
       "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql container create --account-name pallas-kb-cosmos --resource-group rg-pallas-claude --database-name pallas-kb --name candidates --partition-key-path /entityType -o json)",
-      "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql container create --account-name pallas-kb-cosmos --resource-group rg-pallas-claude --database-name pallas-kb --name learned-gotchas --partition-key-path /appliesTo -o json)"
+      "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql container create --account-name pallas-kb-cosmos --resource-group rg-pallas-claude --database-name pallas-kb --name learned-gotchas --partition-key-path /appliesTo -o json)",
+      "Bash(PALLAS_KB_PATH=\"D:/pallas_claude_extension/data\" PALLAS_LOG_LEVEL=info COSMOS_ENDPOINT=\"https://pallas-kb-cosmos.documents.azure.com:443/\" COSMOS_KEY=\"vh0iInEQbIytdhJZxwPKg94x6oIqeRr8BMu4XzlvhtewgnQIF8uxl03hE9aMdu5LBm5MqSayfV5IACDbaP279Q==\" COSMOS_DATABASE=\"pallas-kb\" node packages/mcp-server/dist/server.cjs)",
+      "Bash(MSYS_NO_PATHCONV=1 az cosmosdb sql query *)",
+      "Bash(node -e ' *)",
+      "Bash(PALLAS_KB_PATH=\"D:/pallas_claude_extension/data\" PALLAS_LOG_LEVEL=error COSMOS_ENDPOINT=\"https://pallas-kb-cosmos.documents.azure.com:443/\" COSMOS_KEY=\"vh0iInEQbIytdhJZxwPKg94x6oIqeRr8BMu4XzlvhtewgnQIF8uxl03hE9aMdu5LBm5MqSayfV5IACDbaP279Q==\" COSMOS_DATABASE=\"pallas-kb\" node packages/mcp-server/dist/server.cjs)"
     ]
   }
 }
