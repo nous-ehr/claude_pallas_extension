@@ -90,9 +90,6 @@ async function startHttp() {
 
   // Health check endpoint
   app.get('/health', (_req, res) => {
-    const { existsSync } = require('fs');
-    const { join } = require('path');
-    const kbFile = join(config.kbPath, 'kb.json');
     res.json({
       status: kb.isLoaded ? 'healthy' : 'degraded',
       kbLoaded: kb.isLoaded,
@@ -100,16 +97,6 @@ async function startHttp() {
       toolCount: TOOL_DEFINITIONS.length,
       transport: 'http/sse',
       uptime: process.uptime(),
-      debug: {
-        kbPath: config.kbPath,
-        kbFileExpected: kbFile,
-        kbFileExists: existsSync(kbFile),
-        cwd: process.cwd(),
-        cwdContents: require('fs').readdirSync(process.cwd()),
-        cwdDataExists: existsSync(join(process.cwd(), 'data')),
-        cwdDataKbExists: existsSync(join(process.cwd(), 'data', 'kb.json')),
-        env_PALLAS_KB_PATH: process.env.PALLAS_KB_PATH ?? '(not set)',
-      },
     });
   });
 
