@@ -1,0 +1,28 @@
+{
+  "name": "@nous-ehr/athena-tools",
+  "version": "0.1.0",
+  "description": "athenahealth integration tools for Claude Code — DataView queries, API development, and clinical workflow guidance",
+  "keywords": [
+    "athenahealth",
+    "claude-code",
+    "mcp",
+    "ehr",
+    "fhir",
+    "healthcare",
+    "dataview",
+    "snowflake"
+  ],
+  "bin": {
+    "athena-tools": "./bin/cli.mjs"
+  },
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nous-ehr/claude_pallas_extension"
+  },
+  "files": [
+    "bin/",
+    "assets/"
+  ]
+}
