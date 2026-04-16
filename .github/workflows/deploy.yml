@@ -35,19 +35,11 @@ jobs:
 
       - name: Prepare deployment package
         run: |
+          rm -rf deploy
           mkdir -p deploy/data
           cp packages/mcp-server/dist/server.cjs deploy/
           cp data/kb.json deploy/data/
-          cat > deploy/package.json << 'EOF'
-          {
-            "name": "pallas-mcp-server",
-            "version": "0.1.0",
-            "private": true,
-            "scripts": {
-              "start": "node server.cjs"
-            }
-          }
-          EOF
+          echo '{"name":"pallas-mcp-server","version":"0.1.0","private":true,"scripts":{"start":"node server.cjs"}}' > deploy/package.json
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
