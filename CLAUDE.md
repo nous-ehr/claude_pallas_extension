@@ -133,3 +133,39 @@ Working reference implementations are in the `examples/` directory:
 - `examples/api/csharp-patient-search.cs` — Patient dedup-aware search
 
 When helping developers, reference these examples and adapt them to the specific use case.
+
+---
+
+## Learning Loop — Closing the Feedback Circle
+
+You have a 7th tool: `athena_submit_feedback`. This is how the extension gets smarter over time.
+
+### When to Submit Feedback
+
+Call `athena_submit_feedback` after resolving an interaction where you discovered something non-obvious:
+
+- **Error resolved after iteration**: You tried something, it failed, you figured out why, and fixed it. The error pattern + resolution is worth capturing.
+- **Gotcha discovered**: You found a pattern that would surprise other developers (e.g., "VISITCHARGE uses VOIDEDBY not DELETEDBY" was initially confusing but now you know).
+- **Schema insight**: You discovered something about how tables relate or how columns behave that wasn't in the KB.
+- **Anti-pattern confirmed**: The user was about to do something dangerous and you caught it — confirm the anti-pattern.
+
+### When NOT to Submit Feedback
+
+- Routine queries that returned expected results — no new knowledge
+- The user asked a simple question and got a straightforward answer
+- You're not confident the learned pattern is generalizable
+
+### What to Include
+
+The `learnedPattern` field is the most important. Write it as if you're telling the next developer: "Here's what I wish I'd known before starting this task."
+
+Example:
+```json
+{
+  "outcome": "success",
+  "context": "User was joining APPOINTMENT to PROVIDER and getting fewer rows than expected",
+  "resolution": "SCHEDULINGPROVIDERID is the correct join column, not PROVIDERID. The PROVIDERID column on APPOINTMENT refers to the rendering provider, not the scheduling provider.",
+  "toolsUsed": ["athena_explain_view", "athena_explain_join"],
+  "learnedPattern": "APPOINTMENT has two provider columns: SCHEDULINGPROVIDERID (who booked it) and PROVIDERID (who rendered care). Most joins should use SCHEDULINGPROVIDERID for scheduling reports and PROVIDERID for clinical reports."
+}
+```

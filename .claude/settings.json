@@ -16,7 +16,8 @@
       "mcp__athena-tools__athena_explain_join",
       "mcp__athena-tools__athena_diagnose_error",
       "mcp__athena-tools__athena_explain_workflow",
-      "mcp__athena-tools__athena_suggest_workflow"
+      "mcp__athena-tools__athena_suggest_workflow",
+      "mcp__athena-tools__athena_submit_feedback"
     ]
   }
 }

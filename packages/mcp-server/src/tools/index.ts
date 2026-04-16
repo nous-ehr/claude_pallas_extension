@@ -6,6 +6,8 @@ import { handleExplainJoin, EXPLAIN_JOIN_DEF } from './explainJoin.js';
 import { handleDiagnoseError, DIAGNOSE_ERROR_DEF } from './diagnoseError.js';
 import { handleExplainWorkflow, EXPLAIN_WORKFLOW_DEF } from './explainWorkflow.js';
 import { handleSuggestWorkflow, SUGGEST_WORKFLOW_DEF } from './suggestWorkflow.js';
+import { handleSubmitFeedback, SUBMIT_FEEDBACK_DEF } from './submitFeedback.js';
+import { withEventCapture } from '../learning/eventCapture.js';
 
 export const TOOL_DEFINITIONS: Tool[] = [
   SEARCH_KB_DEF,
@@ -14,18 +16,25 @@ export const TOOL_DEFINITIONS: Tool[] = [
   DIAGNOSE_ERROR_DEF,
   EXPLAIN_WORKFLOW_DEF,
   SUGGEST_WORKFLOW_DEF,
+  SUBMIT_FEEDBACK_DEF,
 ];
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult>;
 
 export function registerTools(kb: KnowledgeBase): Map<string, ToolHandler> {
   const handlers = new Map<string, ToolHandler>();
-  handlers.set('athena_search_kb', (args) => handleSearchKb(kb, args));
-  handlers.set('athena_explain_view', (args) => handleExplainView(kb, args));
-  handlers.set('athena_explain_join', (args) => handleExplainJoin(kb, args));
-  handlers.set('athena_diagnose_error', (args) => handleDiagnoseError(kb, args));
-  handlers.set('athena_explain_workflow', (args) => handleExplainWorkflow(kb, args));
-  handlers.set('athena_suggest_workflow', (args) => handleSuggestWorkflow(kb, args));
+
+  // Wrap KB tools with event capture (records outcomes to Cosmos DB)
+  handlers.set('athena_search_kb', withEventCapture('athena_search_kb', (args) => handleSearchKb(kb, args)));
+  handlers.set('athena_explain_view', withEventCapture('athena_explain_view', (args) => handleExplainView(kb, args)));
+  handlers.set('athena_explain_join', withEventCapture('athena_explain_join', (args) => handleExplainJoin(kb, args)));
+  handlers.set('athena_diagnose_error', withEventCapture('athena_diagnose_error', (args) => handleDiagnoseError(kb, args)));
+  handlers.set('athena_explain_workflow', withEventCapture('athena_explain_workflow', (args) => handleExplainWorkflow(kb, args)));
+  handlers.set('athena_suggest_workflow', withEventCapture('athena_suggest_workflow', (args) => handleSuggestWorkflow(kb, args)));
+
+  // Feedback tool — not wrapped with event capture (it IS the learning loop)
+  handlers.set('athena_submit_feedback', handleSubmitFeedback);
+
   return handlers;
 }
 
