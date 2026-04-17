@@ -9,3 +9,6 @@ Thumbs.db
 deploy.zip
 publish-profile.xml
 deploy/
+.claude/settings.local.json
+mcp-publisher.exe
+mcp-publisher.tar.gz
