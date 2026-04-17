@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.nous-ehr/athena-tools",
+  "title": "Pallas Athena Tools",
+  "description": "athenahealth DataView, API, and workflow tools for Claude Code with learning loop",
+  "repository": {
+    "url": "https://github.com/nous-ehr/claude_pallas_extension",
+    "source": "github"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "pallas-athena-tools",
+      "version": "0.1.1",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

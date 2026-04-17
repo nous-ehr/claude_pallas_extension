@@ -1,6 +1,7 @@
 {
-  "name": "@nous-ehr/athena-tools",
-  "version": "0.1.0",
+  "name": "pallas-athena-tools",
+  "mcpName": "io.github.nous-ehr/athena-tools",
+  "version": "0.1.1",
   "description": "athenahealth integration tools for Claude Code — DataView queries, API development, and clinical workflow guidance",
   "keywords": [
     "athenahealth",
