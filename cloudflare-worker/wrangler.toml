@@ -14,7 +14,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "pallas-telemetry"
-database_id = "REPLACE_WITH_D1_ID_AFTER_wrangler_d1_create"
+database_id = "3972ab3c-222b-4fa3-af21-3dacb799ef42"
 # Used as a fallback sink when Cosmos is unavailable, and for ad-hoc analytics
 # via wrangler d1 execute.
 
