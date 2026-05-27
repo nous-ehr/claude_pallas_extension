@@ -22,6 +22,9 @@ const TOOL_PERMISSIONS = [
   'mcp__athena-tools__athena_submit_feedback',
   'mcp__athena-tools__athena_list_candidates',
   'mcp__athena-tools__athena_review_candidate',
+  'mcp__athena-tools__athena_report_safety_flag',
+  'mcp__athena-tools__athena_report_outcome',
+  'mcp__athena-tools__athena_command_start',
 ];
 
 // ---------------------------------------------------------------------------

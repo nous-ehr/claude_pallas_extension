@@ -1,0 +1,26 @@
+name = "pallas-telemetry"
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Set via: wrangler secret put COSMOS_ENDPOINT
+# Set via: wrangler secret put COSMOS_KEY
+# Set via: wrangler secret put COSMOS_DATABASE   (optional, defaults to "pallas-kb")
+#
+# Free tier: 100K requests/day, 10ms CPU per request.
+# Telemetry volume estimate: ~50 events per active install/day. 100K req/day
+# supports ~2,000 daily active installs comfortably.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pallas-telemetry"
+database_id = "REPLACE_WITH_D1_ID_AFTER_wrangler_d1_create"
+# Used as a fallback sink when Cosmos is unavailable, and for ad-hoc analytics
+# via wrangler d1 execute.
+
+[observability]
+enabled = true
+
+[vars]
+DEFAULT_COSMOS_DATABASE = "pallas-kb"
+DEFAULT_TTL_SECONDS = "7776000"  # 90 days

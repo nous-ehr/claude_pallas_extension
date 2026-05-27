@@ -1,0 +1,18 @@
+{
+  "name": "pallas-telemetry-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telemetry ingestion endpoint for Pallas. Forwards events to Cosmos DB and D1.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create pallas-telemetry",
+    "db:migrate": "wrangler d1 execute pallas-telemetry --file=schema.sql",
+    "db:migrate:remote": "wrangler d1 execute pallas-telemetry --remote --file=schema.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251001.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^3.80.0"
+  }
+}

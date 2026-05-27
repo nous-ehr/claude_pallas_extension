@@ -8,6 +8,9 @@ import { handleExplainWorkflow, EXPLAIN_WORKFLOW_DEF } from './explainWorkflow.j
 import { handleSuggestWorkflow, SUGGEST_WORKFLOW_DEF } from './suggestWorkflow.js';
 import { handleSubmitFeedback, SUBMIT_FEEDBACK_DEF } from './submitFeedback.js';
 import { handleListCandidates, LIST_CANDIDATES_DEF, handleReviewCandidate, REVIEW_CANDIDATE_DEF } from './reviewCandidates.js';
+import { handleReportSafetyFlag, REPORT_SAFETY_FLAG_DEF } from './reportSafetyFlag.js';
+import { handleReportOutcome, REPORT_OUTCOME_DEF } from './reportOutcome.js';
+import { handleCommandStart, COMMAND_START_DEF } from './commandStart.js';
 import { withEventCapture } from '../learning/eventCapture.js';
 
 export const TOOL_DEFINITIONS: Tool[] = [
@@ -20,6 +23,9 @@ export const TOOL_DEFINITIONS: Tool[] = [
   SUBMIT_FEEDBACK_DEF,
   LIST_CANDIDATES_DEF,
   REVIEW_CANDIDATE_DEF,
+  REPORT_SAFETY_FLAG_DEF,
+  REPORT_OUTCOME_DEF,
+  COMMAND_START_DEF,
 ];
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult>;
@@ -41,6 +47,11 @@ export function registerTools(kb: KnowledgeBase): Map<string, ToolHandler> {
   // Review tools — for human review of KB update candidates
   handlers.set('athena_list_candidates', handleListCandidates);
   handlers.set('athena_review_candidate', handleReviewCandidate);
+
+  // Telemetry tools — these ARE the learning loop, not wrapped with capture
+  handlers.set('athena_report_safety_flag', handleReportSafetyFlag);
+  handlers.set('athena_report_outcome', handleReportOutcome);
+  handlers.set('athena_command_start', handleCommandStart);
 
   return handlers;
 }

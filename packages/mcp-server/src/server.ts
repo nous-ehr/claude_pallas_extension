@@ -29,7 +29,7 @@ try {
 const server = new Server(
   {
     name: 'athena-tools',
-    version: '0.1.0',
+    version: '0.2.0',
   },
   {
     capabilities: {
@@ -103,7 +103,7 @@ async function startHttp() {
   // SSE endpoint for MCP clients
   let sseTransport: InstanceType<typeof SSEServerTransport> | null = null;
 
-  app.get('/sse', async (req, res) => {
+  app.get('/sse', async (_req, res) => {
     log.info('SSE client connected');
     sseTransport = new SSEServerTransport('/messages', res);
     await server.connect(sseTransport);

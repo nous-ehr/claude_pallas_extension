@@ -42,6 +42,38 @@ export const SUBMIT_FEEDBACK_DEF: Tool = {
           'A new pattern, gotcha, or insight discovered during the interaction that other developers ' +
           'would benefit from knowing. This is the most important field — capture what was surprising or non-obvious.',
       },
+      category: {
+        type: 'string',
+        enum: [
+          'schema_correction',
+          'join_path',
+          'identity_pattern',
+          'missing_filter',
+          'error_pattern',
+          'workflow_step',
+          'enum_value',
+          'gotcha',
+          'other',
+        ],
+        description:
+          'Optional structured category for the discovery. Providing this skips the keyword-' +
+          'classification step and routes the feedback faster. Use "identity_pattern" for ' +
+          'PATIENT/CHART/identity, "schema_correction" for column/view behavior differences, ' +
+          '"join_path" for incorrect join columns, "enum_value" for missing or new enum values.',
+      },
+      target: {
+        type: 'string',
+        description:
+          'Optional target identifier for the discovery, e.g. "DOCUMENT.STATUS", ' +
+          '"APPOINTMENT.SCHEDULINGPROVIDERID", "PATIENTCASE workflow". Helps maintainers ' +
+          'find the affected KB entry quickly.',
+      },
+      sessionId: {
+        type: 'string',
+        description:
+          'Optional. The sessionId returned by athena_command_start, if this feedback ' +
+          'is being submitted as part of a slash-command interaction.',
+      },
     },
     required: ['outcome', 'context', 'toolsUsed'],
   },
@@ -54,6 +86,21 @@ const InputSchema = z.object({
   toolsUsed: z.array(z.string()),
   errorEncountered: z.string().optional(),
   learnedPattern: z.string().optional(),
+  category: z
+    .enum([
+      'schema_correction',
+      'join_path',
+      'identity_pattern',
+      'missing_filter',
+      'error_pattern',
+      'workflow_step',
+      'enum_value',
+      'gotcha',
+      'other',
+    ])
+    .optional(),
+  target: z.string().max(200).optional(),
+  sessionId: z.string().max(80).optional(),
 });
 
 export async function handleSubmitFeedback(

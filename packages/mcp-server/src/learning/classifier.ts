@@ -3,6 +3,26 @@ import { getContainer } from './cosmosClient.js';
 import { log } from '../config.js';
 
 /**
+ * Structured feedback categories. When Claude supplies a category, the candidate
+ * pipeline can triage 10x faster — reviewers see "schema_correction on
+ * DOCUMENT.STATUS" instead of free-form prose.
+ *
+ * Free-text learnedPattern still works (it's the fallback when the model can't
+ * categorize). But categorized feedback skips the keyword-classification step
+ * in classify() below.
+ */
+export type FeedbackCategory =
+  | 'schema_correction'      // A column/view doesn't behave as documented
+  | 'join_path'              // A join column or path differs from documented
+  | 'identity_pattern'       // PATIENT/CHART/identity-related discovery (always high-risk)
+  | 'missing_filter'         // A missing soft-delete or other essential WHERE clause
+  | 'error_pattern'          // An error + resolution worth remembering
+  | 'workflow_step'          // A workflow step or precondition missing from docs
+  | 'enum_value'             // A column's enum values are incomplete in the KB
+  | 'gotcha'                 // General gotcha that doesn't fit above
+  | 'other';
+
+/**
  * Feedback submitted by Claude Code after resolving an interaction.
  */
 export interface FeedbackPayload {
@@ -12,6 +32,10 @@ export interface FeedbackPayload {
   toolsUsed: string[];        // Which MCP tools were called
   errorEncountered?: string;  // Error message if applicable
   learnedPattern?: string;    // Pattern or gotcha discovered during interaction
+  // Structured taxonomy (optional, backward-compatible)
+  category?: FeedbackCategory;
+  target?: string;            // e.g. "DOCUMENT.STATUS", "APPOINTMENT.SCHEDULINGPROVIDERID"
+  sessionId?: string;         // Correlates with athena_command_start
 }
 
 /**
@@ -91,13 +115,20 @@ export async function classifyAndRoute(feedback: FeedbackPayload): Promise<{
 
 /**
  * Classify the feedback into a risk level and change type.
+ *
+ * Strategy:
+ *   1. If feedback.category is provided, use it directly (fast path).
+ *   2. Otherwise fall back to keyword heuristics on learnedPattern (legacy path).
  */
 function classify(feedback: FeedbackPayload): ClassificationResult | null {
-  // If there's no learned pattern and no error, nothing to classify
+  // ----- Structured fast path -----
+  if (feedback.category) {
+    return classifyByCategory(feedback);
+  }
+
+  // ----- Legacy keyword-based path -----
   if (!feedback.learnedPattern && !feedback.errorEncountered) {
-    // Success with no new pattern — nothing to learn
     if (feedback.outcome === 'success') return null;
-    // Failure with no details — can't learn from this
     return null;
   }
 
@@ -118,7 +149,6 @@ function classify(feedback: FeedbackPayload): ClassificationResult | null {
     const isIdentityRelated = /patientid|chartid|enterpriseid|identity/i.test(feedback.learnedPattern);
 
     if (isSchemaRelated || isIdentityRelated) {
-      // HIGH RISK — schema and identity changes need human review
       return {
         risk: 'high',
         type: isIdentityRelated ? 'relationship_change' : 'schema_correction',
@@ -128,7 +158,6 @@ function classify(feedback: FeedbackPayload): ClassificationResult | null {
       };
     }
 
-    // LOW RISK — general gotcha
     return {
       risk: 'low',
       type: 'new_gotcha',
@@ -143,11 +172,90 @@ function classify(feedback: FeedbackPayload): ClassificationResult | null {
 }
 
 /**
+ * Structured-feedback fast path. Trusts the supplied category, applies a fixed
+ * risk policy per category. No keyword matching, no false positives.
+ */
+function classifyByCategory(feedback: FeedbackPayload): ClassificationResult | null {
+  const pattern = feedback.learnedPattern ?? feedback.errorEncountered ?? feedback.resolution ?? '';
+  const targetSuffix = feedback.target ? ` (${feedback.target})` : '';
+  const title = `${feedback.category!}${targetSuffix}: ${normalizeForTitle(pattern || feedback.context)}`;
+  const description = [
+    `Category: ${feedback.category}`,
+    feedback.target ? `Target: ${feedback.target}` : null,
+    `Pattern: ${pattern || '(none provided)'}`,
+    `Context: ${feedback.context}`,
+    feedback.resolution ? `Resolution: ${feedback.resolution}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  switch (feedback.category) {
+    case 'identity_pattern':
+      return {
+        risk: 'high',
+        type: 'relationship_change',
+        title,
+        description,
+        appliesTo: feedback.target,
+        severity: 'critical',
+      };
+    case 'schema_correction':
+    case 'join_path':
+      return {
+        risk: 'high',
+        type: 'schema_correction',
+        title,
+        description,
+        appliesTo: feedback.target,
+        severity: 'critical',
+      };
+    case 'enum_value':
+      return {
+        risk: 'high',
+        type: 'schema_correction',
+        title,
+        description,
+        appliesTo: feedback.target,
+        severity: 'warning',
+      };
+    case 'error_pattern':
+      return {
+        risk: 'low',
+        type: 'new_error_pattern',
+        title,
+        description,
+        severity: 'warning',
+      };
+    case 'missing_filter':
+    case 'workflow_step':
+    case 'gotcha':
+      return {
+        risk: 'low',
+        type: 'new_gotcha',
+        title,
+        description,
+        appliesTo: feedback.target ?? extractAppliesTo(feedback),
+        severity: 'info',
+      };
+    case 'other':
+    default:
+      return {
+        risk: 'low',
+        type: 'new_gotcha',
+        title,
+        description,
+        appliesTo: feedback.target ?? extractAppliesTo(feedback),
+        severity: 'info',
+      };
+  }
+}
+
+/**
  * Auto-merge a low-risk pattern into the learned-gotchas container.
  */
 async function autoMerge(
   classification: ClassificationResult,
-  feedback: FeedbackPayload
+  _feedback: FeedbackPayload
 ): Promise<{ action: 'auto_merged'; details: string }> {
   const container = getContainer('learned-gotchas');
   if (!container) {

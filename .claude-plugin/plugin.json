@@ -1,0 +1,20 @@
+{
+  "name": "athena-tools",
+  "description": "athenahealth integration engineer for Claude Code — proactive safety for Snowflake DataView queries, REST/FHIR API integration, and clinical workflow guidance backed by a 1.9K-doc knowledge base. 12 MCP tools, 9 slash commands, telemetry-driven learning loop.",
+  "version": "0.2.0",
+  "author": {
+    "name": "nous-ehr"
+  },
+  "homepage": "https://github.com/nous-ehr/claude_pallas_extension",
+  "repository": "https://github.com/nous-ehr/claude_pallas_extension",
+  "license": "MIT",
+  "keywords": [
+    "athenahealth",
+    "ehr",
+    "fhir",
+    "dataview",
+    "snowflake",
+    "healthcare",
+    "clinical-workflow"
+  ]
+}

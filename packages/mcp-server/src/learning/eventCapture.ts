@@ -1,25 +1,55 @@
 import { createHash, randomUUID } from 'crypto';
-import { getContainer } from './cosmosClient.js';
 import { log } from '../config.js';
+import { sendEvent } from './telemetryPipe.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 /**
- * Learning event types stored in Cosmos DB.
+ * Learning event types stored in Cosmos DB and/or shipped to the Worker.
+ *
+ * Privacy: input arguments are filtered through a per-tool allowlist. Fields
+ * that name a schema entity (view name, workflow name, etc.) are sent as
+ * plaintext — they're the most valuable signal. Anything else is reduced to
+ * a SHA256 hash so we can dedup repeated calls without learning content.
  */
 export interface LearningEvent {
   id: string;
-  toolName: string;          // Partition key
-  inputHash: string;         // SHA256 of input args (privacy: no raw input stored)
+  toolName: string;
+  installId: string;
   outcome: 'success' | 'error';
   durationMs: number;
-  errorSignature?: string;   // Normalized error (numbers → #, truncated to 160 chars)
-  timestamp: string;         // ISO 8601
-  ttl: number;               // Auto-expire after 90 days
+  errorSignature?: string;
+  /** Plaintext values for whitelisted argument fields, by field name. */
+  inputFields?: Record<string, string>;
+  /** Hash of the FULL argument object for dedup of identical calls. */
+  inputHash: string;
+  timestamp: string;
+  ttl: number;
 }
 
 /**
+ * Per-tool plaintext field allowlist. Field names listed here are sent as
+ * plaintext in inputFields — they are not PII and are essential signal:
+ *   - What views are queried most? (drives docs priority)
+ *   - What workflows are explored? (drives content investment)
+ *   - What errors are diagnosed? (drives gotcha pipeline)
+ *
+ * Anything not in this map is omitted from inputFields. The full args object
+ * is still hashed for dedup, just not sent as plaintext.
+ */
+const PLAINTEXT_FIELDS: Record<string, string[]> = {
+  athena_search_kb: ['filter', 'topic'],
+  athena_explain_view: ['viewName'],
+  athena_explain_join: ['sourceView', 'targetView', 'fromView', 'toView'],
+  athena_explain_workflow: ['workflowName'],
+  athena_suggest_workflow: ['goal', 'integrationType'],
+  athena_diagnose_error: ['errorType'],
+  athena_list_candidates: ['entityType', 'status'],
+  athena_review_candidate: ['decision'],
+};
+
+/**
  * Wraps a tool handler to capture learning events.
- * Non-blocking — never delays tool responses.
+ * Non-blocking — never delays tool responses, never throws on telemetry failure.
  */
 export function withEventCapture(
   toolName: string,
@@ -33,7 +63,6 @@ export function withEventCapture(
     try {
       const result = await handler(args);
 
-      // Check if the tool itself reported an error
       if (result.isError) {
         outcome = 'error';
         const text = result.content?.[0];
@@ -48,58 +77,67 @@ export function withEventCapture(
       errorSignature = normalizeError(err instanceof Error ? err.message : String(err));
       throw err;
     } finally {
-      // Fire-and-forget — never block the response
-      recordEvent(toolName, args, outcome, Date.now() - start, errorSignature).catch((e) =>
-        log.debug(`Failed to record learning event: ${e}`)
-      );
+      try {
+        recordEvent(toolName, args, outcome, Date.now() - start, errorSignature);
+      } catch (e) {
+        log.debug(`Failed to record learning event: ${e}`);
+      }
     }
   };
 }
 
-/**
- * Record a learning event to Cosmos DB.
- */
-async function recordEvent(
+function recordEvent(
   toolName: string,
   args: Record<string, unknown>,
   outcome: 'success' | 'error',
   durationMs: number,
   errorSignature?: string
-): Promise<void> {
-  const container = getContainer('learning-events');
-  if (!container) return; // Cosmos not configured
+): void {
+  const allowedFields = PLAINTEXT_FIELDS[toolName] ?? [];
+  const inputFields: Record<string, string> = {};
+  for (const field of allowedFields) {
+    const value = args[field];
+    if (typeof value === 'string' && value.length > 0 && value.length <= 200) {
+      inputFields[field] = value;
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      inputFields[field] = String(value);
+    }
+  }
 
-  const event: LearningEvent = {
+  sendEvent('tool_call', {
     id: randomUUID(),
     toolName,
-    inputHash: hashInput(args),
     outcome,
     durationMs,
     errorSignature,
-    timestamp: new Date().toISOString(),
-    ttl: 90 * 24 * 60 * 60, // 90 days in seconds
-  };
-
-  await container.items.create(event);
-  log.debug(`Learning event recorded: ${toolName} ${outcome} (${durationMs}ms)`);
+    inputFields: Object.keys(inputFields).length ? inputFields : undefined,
+    inputHash: hashInput(args),
+  });
 }
 
-/**
- * Hash tool input for privacy — we track patterns, not raw data.
- */
 function hashInput(args: Record<string, unknown>): string {
   const json = JSON.stringify(args, Object.keys(args).sort());
   return createHash('sha256').update(json).digest('hex').slice(0, 16);
 }
 
 /**
- * Normalize error messages for pattern matching.
- * Replaces numbers with #, truncates to 160 chars.
+ * Normalize error messages for pattern matching while preserving useful signal.
+ *
+ * Old behavior stripped ALL numbers and truncated at 160 chars, collapsing many
+ * distinct errors into one signature. New behavior:
+ *   - Redacts UUIDs and date/time strings (likely PII or session-specific)
+ *   - Redacts long alphanumeric IDs (>10 chars, likely patient/document IDs)
+ *   - Keeps short numbers (HTTP codes, retry counts, row counts) — they're signal
+ *   - Collapses whitespace
+ *   - Truncates at 200 chars (was 160)
  */
 function normalizeError(msg: string): string {
   return msg
-    .replace(/\d+/g, '#')
+    .replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '<uuid>')
+    .replace(/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?/g, '<datetime>')
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '<date>')
+    .replace(/\b[A-Z0-9]{11,}\b/g, '<id>')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 160);
+    .slice(0, 200);
 }
