@@ -1,6 +1,7 @@
 {
   "mcpServers": {
     "athena-tools": {
+      "type": "sse",
       "url": "https://pallas-mcp-server.azurewebsites.net/sse"
     }
   }
