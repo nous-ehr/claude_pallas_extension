@@ -18,7 +18,7 @@ No install needed. Add this to any project's `.claude/settings.json`:
 
 Then open Claude Code and ask: *"How do I safely join PATIENT to CHART in DataView?"*
 
-This gives you all 9 MCP tools via the hosted server. For the full experience (slash commands, proactive safety rules, CLAUDE.md guidance), use the install method below.
+This gives you all 12 MCP tools via the hosted server. For the full experience (slash commands, proactive safety rules, CLAUDE.md guidance), use the install method below.
 
 ## Full Install
 
@@ -27,7 +27,7 @@ npx pallas-athena-tools setup
 ```
 
 This installs to your user-level Claude Code config (`~/.claude/`):
-- 9 MCP tools connected to the hosted knowledge base
+- 12 MCP tools connected to the hosted knowledge base
 - 9 slash commands (`/sql`, `/athena-api`, `/onboard`, `/diagnose`, etc.)
 - CLAUDE.md with proactive safety rules and clinical context
 
@@ -75,6 +75,9 @@ npx pallas-athena-tools uninstall   # Remove everything
 | `athena_submit_feedback` | Report learned patterns back to the KB (learning loop) |
 | `athena_list_candidates` | List pending KB update candidates for review |
 | `athena_review_candidate` | Approve or reject a KB update candidate |
+| `athena_report_safety_flag` | Record a fired proactive safety rule (v0.2.0) |
+| `athena_report_outcome` | Record artifact intent and acceptance at end of interaction (v0.2.0) |
+| `athena_command_start` | Beacon for slash command usage (v0.2.0) |
 
 ## Learning Loop
 
