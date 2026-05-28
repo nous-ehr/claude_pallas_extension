@@ -1,0 +1,66 @@
+Knowledge Base Data License
+
+Copyright (c) 2026 nous-ehr / Aether Forge
+
+This license covers the curated knowledge base contained in `data/kb.json`
+and any derivative compilations of that data — including documents, view
+schemas, column metadata, foreign-key relationships, enum values, identity
+patterns, and gotchas.
+
+The source code of this repository is NOT covered by this license. It is
+licensed separately under the MIT License (see LICENSE).
+
+---
+
+SPDX-License-Identifier: CC-BY-NC-SA-4.0
+
+The knowledge base data is licensed under the Creative Commons Attribution-
+NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0).
+
+Canonical license text:
+  https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+Human-readable summary:
+  https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+---
+
+What this means:
+
+YOU MAY:
+  - Use the knowledge base for personal, educational, or non-commercial
+    research purposes
+  - Share the knowledge base, with attribution to the copyright holder
+  - Adapt or build upon the knowledge base, provided your derivative work
+    is shared under the same CC BY-NC-SA 4.0 license
+
+YOU MAY NOT:
+  - Use the knowledge base, in whole or in substantial part, for commercial
+    purposes without a separate commercial license from the copyright holder
+  - Redistribute a modified version under a more permissive license
+  - Remove or alter the attribution and license notices
+
+Attribution:
+  When sharing or adapting the knowledge base, credit "Pallas Knowledge
+  Base, Aether Forge" with a link to
+  https://github.com/nous-ehr/claude_pallas_extension.
+
+Commercial licensing:
+  For commercial use — including embedding the knowledge base in a
+  commercial product, offering paid services that redistribute the data,
+  or any other for-profit redistribution — contact the maintainers by
+  opening an issue at:
+  https://github.com/nous-ehr/claude_pallas_extension/issues
+
+  Custom and per-customer extended knowledge bases (e.g., layered private
+  schema additions for an integration partner) are available under
+  separate commercial terms.
+
+---
+
+Patches and contributions to the knowledge base:
+
+  Contributions to `data/kb.json` (e.g., schema corrections, new gotchas,
+  workflow documentation) are accepted under the same CC BY-NC-SA 4.0
+  license. By submitting a pull request or feedback through the learning
+  loop, you agree that your contribution is licensed under these terms.

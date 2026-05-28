@@ -23,7 +23,7 @@ This gives you all 9 MCP tools via the hosted server. For the full experience (s
 ## Full Install
 
 ```bash
-npx @nous-ehr/athena-tools setup
+npx pallas-athena-tools setup
 ```
 
 This installs to your user-level Claude Code config (`~/.claude/`):
@@ -36,8 +36,8 @@ Works in **every project** — no per-project configuration needed.
 ### Other CLI commands
 
 ```bash
-npx @nous-ehr/athena-tools status      # Check installation
-npx @nous-ehr/athena-tools uninstall   # Remove everything
+npx pallas-athena-tools status      # Check installation
+npx pallas-athena-tools uninstall   # Remove everything
 ```
 
 ## What It Does
@@ -156,4 +156,5 @@ This extension is **fully independent** from the Athena Tools VS Code extension.
 
 ## License
 
-MIT
+- **Source code**: [MIT](LICENSE)
+- **Knowledge base** (`data/kb.json`): [CC BY-NC-SA 4.0](LICENSE-DATA) — non-commercial use only; contact maintainers for commercial licensing
