@@ -12,3 +12,6 @@ deploy/
 .claude/settings.local.json
 mcp-publisher.exe
 mcp-publisher.tar.gz
+
+# Windows shell metadata
+desktop.ini
