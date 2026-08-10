@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import MiniSearch from 'minisearch';
 import type {
+  KbEndpoint,
   KbView,
   KbColumn,
   KbEnumValue,
@@ -27,12 +28,22 @@ interface KbStore {
   relationships: KbRelationship[];
   identityPatterns: KbIdentityPattern[];
   gotchas: KbGotcha[];
+  endpoints: KbEndpoint[];
   documents: KbDocument[];
 }
 
 // ---------------------------------------------------------------------------
 // Search document shapes (flattened for MiniSearch indexing)
 // ---------------------------------------------------------------------------
+
+interface EndpointDoc {
+  id: string;
+  type: 'endpoint';
+  title: string;
+  text: string;
+  confidence: number;
+  sourceTier: string;
+}
 
 interface ViewDoc {
   id: string;
@@ -74,7 +85,7 @@ interface GotchaDoc {
   docType?: string;
 }
 
-type SearchDoc = ViewDoc | ColumnDoc | DocDocument | GotchaDoc;
+type SearchDoc = ViewDoc | ColumnDoc | DocDocument | GotchaDoc | EndpointDoc;
 
 // ---------------------------------------------------------------------------
 // KnowledgeBase: loads once on startup, answers queries synchronously
@@ -221,6 +232,24 @@ export class KnowledgeBase {
       });
     }
 
+    for (const e of this.store.endpoints ?? []) {
+      const paramNames = [
+        ...e.parameters.map((p) => p.name),
+        ...(e.requestBody?.properties ?? []).map((p) => p.name),
+      ];
+      docs.push({
+        id: `ep:${e.endpointId}`,
+        type: 'endpoint',
+        title: `${e.method} ${e.path}`,
+        // operationId and every parameter name are indexed: a coding agent
+        // searches for the identifier it has to type, not for a description.
+        text: [e.method, e.path, e.endpointId, e.title, e.description ?? '',
+               (e.tags ?? []).join(' '), paramNames.join(' ')].join(' '),
+        confidence: e.confidence,
+        sourceTier: e.sourceTier,
+      });
+    }
+
     for (const d of this.store.documents) {
       docs.push({
         id: `doc:${d.docId}`,
@@ -280,6 +309,18 @@ export class KnowledgeBase {
         if (!gotcha || gotcha.confidence < minConfidence) continue;
         results.push({ entityType: 'gotcha', entity: gotcha, score, snippet: gotcha.description.slice(0, 200) });
 
+      } else if (id.startsWith('ep:')) {
+        const endpointId = id.slice('ep:'.length);
+        const ep = (this.store.endpoints ?? []).find((e) => e.endpointId === endpointId);
+        if (!ep || ep.confidence < minConfidence) continue;
+        if (filter !== 'all' && filter !== 'api') continue;
+        results.push({
+          entityType: 'endpoint',
+          entity: ep,
+          score,
+          snippet: `${ep.method} ${ep.path} - ${ep.title}`,
+        });
+
       } else if (id.startsWith('doc:')) {
         const docId = id.slice('doc:'.length);
         const doc = this.store.documents.find((d) => d.docId === docId);
@@ -321,6 +362,28 @@ export class KnowledgeBase {
 
   getAllGotchas(): KbGotcha[] {
     return this.store?.gotchas ?? [];
+  }
+
+  /**
+   * Look up an endpoint by operationId, path, or "METHOD /path".
+   *
+   * An agent that already has the identifier should not have to search for it
+   * and hope ranking cooperates -- searching for `postPracticeidPatients` and
+   * getting the third result is the failure this avoids.
+   */
+  getEndpoint(idOrPath: string): KbEndpoint | undefined {
+    if (!this.store?.endpoints) return undefined;
+    const needle = idOrPath.trim().toLowerCase();
+    return this.store.endpoints.find(
+      (e) =>
+        e.endpointId.toLowerCase() === needle ||
+        e.path.toLowerCase() === needle ||
+        `${e.method} ${e.path}`.toLowerCase() === needle
+    );
+  }
+
+  getAllEndpoints(): KbEndpoint[] {
+    return this.store?.endpoints ?? [];
   }
 
   getIdentityPattern(patternId: string): KbIdentityPattern | undefined {

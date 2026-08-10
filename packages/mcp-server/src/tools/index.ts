@@ -2,6 +2,7 @@ import type { KnowledgeBase } from '../db/kbStore.js';
 import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { handleSearchKb, SEARCH_KB_DEF } from './searchKb.js';
 import { handleExplainView, EXPLAIN_VIEW_DEF } from './explainView.js';
+import { handleExplainEndpoint, EXPLAIN_ENDPOINT_DEF } from './explainEndpoint.js';
 import { handleExplainJoin, EXPLAIN_JOIN_DEF } from './explainJoin.js';
 import { handleDiagnoseError, DIAGNOSE_ERROR_DEF } from './diagnoseError.js';
 import { handleExplainWorkflow, EXPLAIN_WORKFLOW_DEF } from './explainWorkflow.js';
@@ -15,6 +16,7 @@ import { withEventCapture } from '../learning/eventCapture.js';
 
 export const TOOL_DEFINITIONS: Tool[] = [
   SEARCH_KB_DEF,
+  EXPLAIN_ENDPOINT_DEF,
   EXPLAIN_VIEW_DEF,
   EXPLAIN_JOIN_DEF,
   DIAGNOSE_ERROR_DEF,
@@ -35,6 +37,7 @@ export function registerTools(kb: KnowledgeBase): Map<string, ToolHandler> {
 
   // Wrap KB tools with event capture (records outcomes to Cosmos DB)
   handlers.set('athena_search_kb', withEventCapture('athena_search_kb', (args) => handleSearchKb(kb, args)));
+  handlers.set('athena_explain_endpoint', withEventCapture('athena_explain_endpoint', (args) => Promise.resolve(handleExplainEndpoint(kb, args))));
   handlers.set('athena_explain_view', withEventCapture('athena_explain_view', (args) => handleExplainView(kb, args)));
   handlers.set('athena_explain_join', withEventCapture('athena_explain_join', (args) => handleExplainJoin(kb, args)));
   handlers.set('athena_diagnose_error', withEventCapture('athena_diagnose_error', (args) => handleDiagnoseError(kb, args)));

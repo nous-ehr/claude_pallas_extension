@@ -109,6 +109,7 @@ export interface KbDocument extends Provenance {
 // ---------------------------------------------------------------------------
 
 export type KbEntity =
+  | KbEndpoint
   | KbView
   | KbColumn
   | KbEnumValue
@@ -117,6 +118,50 @@ export type KbEntity =
   | KbGotcha
   | KbDocument;
 
+// ---------------------------------------------------------------------------
+// API endpoints (athenaOne REST, from the developer portal's OpenAPI records)
+// ---------------------------------------------------------------------------
+//
+// Endpoints are structured rather than prose because a coding agent turns them
+// into code, and code needs exact identifiers. "You can supply patient
+// demographic details" is unusable; `agriculturalworkertype (string, optional)`
+// is directly usable, and a guessed field name is a silent 400 rather than an
+// error the agent can see.
+//
+// Flattening these to documents lost 3,861 typed parameters across 902
+// endpoints -- postPracticeidPatients alone carries 113 properties, 4 of them
+// required.
+
+export interface KbParameter {
+  name: string;
+  in: 'path' | 'query' | 'header' | 'body' | 'formData';
+  type: string;
+  required: boolean;
+  description?: string;
+}
+
+export interface KbEndpoint extends Provenance {
+  endpointId: string;       // operationId, e.g. "postPracticeidPatients"
+  method: string;           // "GET" | "POST" | "PUT" | "DELETE"
+  path: string;             // e.g. "/v1/{practiceid}/patients"
+  title: string;
+  description?: string;
+  parameters: KbParameter[];
+  requestBody?: {
+    contentType: string;
+    properties: KbParameter[];
+  };
+  responses?: Array<{
+    status: string;
+    contentType?: string;
+    properties: KbParameter[];
+  }>;
+  tags?: string[];
+  apiCatalog?: string;      // source spec file, e.g. "Patients.yaml"
+  certifiedApi?: boolean;
+  url?: string;
+}
+
 export type KbEntityType =
   | 'view'
   | 'column'
@@ -124,6 +169,7 @@ export type KbEntityType =
   | 'relationship'
   | 'identity_pattern'
   | 'gotcha'
+  | 'endpoint'
   | 'document';
 
 export interface KbSearchResult {

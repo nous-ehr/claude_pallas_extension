@@ -58,27 +58,45 @@ export async function handleExplainWorkflow(
     });
   }
 
-  const sources = [...workflowDocs, ...apiDocs].map((r) => ({
-    title: (r.entity as { title: string }).title,
-    url: (r.entity as { url?: string }).url,
-    docType: (r.entity as { docType?: string }).docType,
-    sourceTier: r.entity.sourceTier,
-    confidence: r.entity.confidence,
-    relevanceScore: r.score,
-  }));
+  // Evidence, not prose.
+  //
+  // This returned `documentExcerpts` -- three documents truncated at 600
+  // characters and joined into one string -- alongside three hard-coded
+  // `integrationGuidance` lines that appeared whatever the question was. Both
+  // decided the answer before the agent saw anything: it never learned what was
+  // cut, never saw documents four onward, and could not ask for more. Standing
+  // guidance now lives in the server instructions, where it is stated once
+  // rather than appended to every result.
+  const documents = [...workflowDocs, ...apiDocs].map((r) => {
+    const e = r.entity as {
+      docId?: string; title: string; url?: string; docType?: string; text?: string;
+    };
+    return {
+      docId: e.docId,
+      title: e.title,
+      url: e.url,
+      docType: e.docType,
+      sourceTier: r.entity.sourceTier,
+      confidence: r.entity.confidence,
+      relevanceScore: r.score,
+      snippet: r.snippet,
+      // So the agent can decide whether the snippet is enough before spending a
+      // fetch on the rest.
+      textLength: e.text?.length ?? 0,
+    };
+  });
 
-  const relatedViews = schemaHits.map((r) => ({
-    viewName: (r.entity as { viewName?: string }).viewName ?? (r.entity as { columnName?: string }).columnName,
-    description: r.snippet,
-  }));
-
-  const documentTexts = workflowDocs
-    .slice(0, 3)
-    .map((r) => {
-      const doc = r.entity as { title: string; text: string };
-      return `### ${doc.title}\n${doc.text.slice(0, 600)}...`;
-    })
-    .join('\n\n');
+  // A view entry without a name is not a view. These were returned with a
+  // description and no `viewName`, which rendered as "undefined:" -- portal
+  // pages misclassified as schema. Better to return fewer and have them be real.
+  const relatedViews = schemaHits
+    .map((r) => ({
+      viewName:
+        (r.entity as { viewName?: string }).viewName ??
+        (r.entity as { columnName?: string }).columnName,
+      description: r.snippet,
+    }))
+    .filter((v) => Boolean(v.viewName));
 
   return jsonResult({
     found: true,
@@ -86,18 +104,13 @@ export async function handleExplainWorkflow(
     summary:
       `Found ${workflowDocs.length} workflow/guide document(s) and ` +
       `${apiDocs.length} API reference document(s) related to "${workflow}".`,
-    documentExcerpts: documentTexts || null,
+    documents,
     relatedViews,
-    relatedApiDocs: apiDocs.slice(0, 3).map((r) => ({
-      title: (r.entity as { title: string }).title,
-      url: (r.entity as { url?: string }).url,
-      snippet: r.snippet,
-    })),
-    sources,
-    integrationGuidance: [
-      `Before building an automation for "${workflow}", verify that athenaOne has a built-in workflow for this.`,
-      'Many integration issues arise from automating around the product rather than using the intended workflow.',
-      'Use athena_suggest_workflow to get a recommended integration approach for a specific goal.',
-    ],
+    // Retrieve the full text of any document above with athena_search_kb, or
+    // read the URL directly.
+    nextStep:
+      documents.length > 0
+        ? 'Fetch the full text of whichever documents look relevant before answering.'
+        : undefined,
   });
 }

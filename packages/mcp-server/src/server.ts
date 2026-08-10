@@ -26,6 +26,21 @@ try {
 // Create MCP server
 // ---------------------------------------------------------------------------
 
+// Standing guidance, stated once at initialisation rather than appended to
+// every tool result. Each line is here because it guards a specific, likely
+// mistake against this corpus -- not as general advice.
+const INSTRUCTIONS = `athenahealth knowledge base: DataView schema, athenaOne API reference, O-help product documentation, Success Community support articles, and release notes.
+
+Before concluding that no documentation exists, search at least twice with different phrasing, and check both the API reference and the release notes. Behaviour is often changed in a release note without the reference being updated.
+
+Data View and the athenaOne API are different products. Querying data is usually Data View; reading or writing records is usually the API. Say which one you are answering about.
+
+Every Data View query needs CONTEXTID. Omitting it returns another practice's data, or nothing.
+
+Success Community articles are dated, and many describe issues that have since been resolved. A workaround from 2022 is history, not current guidance -- give the date whenever you cite one.
+
+Tools return evidence, not answers. Snippets are short by design: fetch the documents that look relevant and compose the answer yourself, using what you can see and the tools cannot -- the user's code, their stack, and what they have already tried.`;
+
 const server = new Server(
   {
     name: 'athena-tools',
@@ -35,6 +50,7 @@ const server = new Server(
     capabilities: {
       tools: {},
     },
+    instructions: INSTRUCTIONS,
   }
 );
 
