@@ -1,146 +1,211 @@
-# Handoff — 2026-08-10
+# Handoff — 2026-08-10, end of day
 
-State at the point of stopping, and what to pick up.
+Supersedes the earlier version written before tonight's deploy. That one told
+you to rotate a key that is now rotated and described a Pallas KB that has since
+been replaced.
 
----
-
-## Do this first
-
-**Rotate the `stathenakb` storage account key.**
-
-`az webapp config storage-account list` printed the key in plaintext to a
-terminal during this session. It grants full read/write to every index —
-`granite-staff`, `granite-developer`, `pallas-kb`, and the embedding model.
-
-1. Portal → `stathenakb` → Access keys → Rotate **key1**
-2. Re-add the two mounts, because App Service stores the key rather than
-   referencing it:
-   - `athena-agent` — mount `/mnt/kb`, share `athena-kb`
-   - `pallas-mcp-server` — mount `/mnt/pallas-kb`, share `athena-kb`
-
-Nothing else is blocked by this, but it should not wait.
+**Both services are live and healthy. Nothing is blocked.**
 
 ---
 
 ## Live now
 
-| | |
+| | Web agent | Pallas MCP |
+|---|---|---|
+| URL | `athena-agent.azurewebsites.net` | `pallas-mcp-server.azurewebsites.net` |
+| Serves | **122,478 chunks**, athenaOne only | **48,195 documents + 891 endpoints**, 13 tools |
+| Transport | HTTPS / Flask | http/sse (`/sse`, `/messages?sessionId=`) |
+| Reads | `/mnt/kb/granite-staff` | `/mnt/pallas-kb/pallas-kb/kb.json` |
+| Plan | `plan-athena` (B2) | `plan-pallas-mcp` (B2) |
+| Deploys by | GitHub Actions on push to `master` | GitHub Actions on push to `main` |
+| Health | `/stats` | `/health` |
+
+Separate plans deliberately: one restarting must not take the other down.
+
+Verified live tonight:
+
+```
+athena_explain_endpoint("postPracticeidPatients", includeOptional: false)
+  POST /v1/{practiceid}/patients
+  required: practiceid, Content-Type, departmentid, dob, firstname, lastname
+  omittedOptional: 109
+```
+
+---
+
+## Done tonight
+
+**Storage key rotated.** `stathenakb` key1 had been printed in plaintext during
+a session. Rotated, and both mounts updated. Key2 remains valid as a fallback.
+
+Two things worth knowing for next time:
+
+- The mount configs still existed with the stale key, so this needs
+  `az webapp config storage-account update`, **not** `add` — `add` fails with
+  "Site already configured with an Azure storage account with the id 'kb'".
+- Never run `az webapp config storage-account list`. It prints the key to
+  stdout, which is how it leaked in the first place.
+
+**Pallas KB replaced.** 1,943 documents dated 2026-04-13 → 48,195 current, plus
+891 endpoint entities carrying 5,664 typed parameters.
+
+**The server deploy is automated.** `.github/workflows/deploy.yml` builds and
+deploys on push to `main`, and had already shipped the new build hours before
+the manual runbook step was reached. It has **no verify step**, unlike the
+agent's — it reports success without checking the server came back.
+
+---
+
+## Asset inventory
+
+### Repositories
+
+| Repo | Host | Head | Role |
+|---|---|---|---|
+| `athena_agent` | GitHub `PatrickRutledge` | `35f4262` | Web agent. Deploys to App Service |
+| `athena_knowledge_base` | **GitLab** `hometeamapps` | `5c84bf3` | Corpus, scrapers, chunkers, builders |
+| `pallas_claude_extension` | GitHub **`nous-ehr`** | `b22d885` | **The real MCP server** (v0.2.0, 12→13 tools) + Claude commands |
+| `pallas_vscode_extension` | GitHub `PatrickRutledge` | `732aab9` | VS Code `athena-tools` v0.1.8. Bundles a **stale fork** |
+| `athena-kb-agents` | GitHub `PatrickRutledge` | `9475f5b8` | Monorepo — subtree grafts of all four |
+
+Plus a submodule: `pallas_vscode_extension/public-repo/athenatools_vscode` →
+`github.com/microsoft-aetherforge/athenatools_vscode`, holding public extension
+assets. One uncommitted logo change sits there.
+
+**Three GitHub organisations and two hosts for one project.** Consolidating is a
+decision, not a task.
+
+### Published artifacts
+
+| Channel | Identifier | Version | Note |
+|---|---|---|---|
+| npm | `pallas-athena-tools` | **0.1.1** | Local packages are 0.2.0 — ahead of published |
+| MCP registry | `io.github.nous-ehr/athena-tools` | 0.1.1 | Listed since April |
+| VS Code Marketplace | `AetherForgeus.athena-tools` | 0.1.8 | Stale fork inside |
+
+### Azure — resource group `athena`
+
+| Resource | Purpose |
 |---|---|
-| **Web agent** | `athena-agent.azurewebsites.net` — 122,478 chunks, athenaOne only, Granite + BM25 hybrid |
-| **Pallas MCP** | `pallas-mcp-server.azurewebsites.net` — **49,076 documents**, 12 tools, http/sse |
-| Both plans | B2. Separate, so one restarting cannot take the other down |
+| `athena-agent` | Web agent (App Service) |
+| `pallas-mcp-server` | Pallas MCP (App Service) |
+| `plan-athena`, `plan-pallas-mcp` | B2 each |
+| `stathenakb` | Storage. Share `athena-kb`, 10 GB quota |
+| `pallas-kb-cosmos` | Cosmos, serverless. Database `pallas-kb`. Vector search **not** enabled |
+| `func-athena-feedback` | Feedback ingestion, Cosmos-backed |
+| `kv-athena-bf` | Key Vault |
+| `stathenafeedback` | Storage for the feedback function |
+| 3 × `oidc-msi-*` | Orphaned managed identities — safe to remove |
 
-Pallas health check:
+### Azure Files — share `athena-kb`
 
-```
-curl https://pallas-mcp-server.azurewebsites.net/health
-{"kbLoaded":true,"kbMeta":{"documentCount":49076,...},"toolCount":12}
-```
+| Path | Contents | Status |
+|---|---|---|
+| `granite-staff/` | 122,478 chunks, athenaOne | **Live** — agent |
+| `pallas-kb/kb.json` | 48,195 docs + 891 endpoints, 97 MB | **Live** — Pallas |
+| `granite-developer/` | 173,719 chunks, all strata | Built, used only to generate Pallas's KB |
+| `models/granite-small/` | Embedding model, 186 MB | **Live** — agent |
+| `index/` | MiniLM, 6,780 docs | Agent rollback target |
+| `index_developer/`, `corpus/` | Superseded | |
 
----
+### Corpus versions
 
-## What changed today
+| Version | What | Where |
+|---|---|---|
+| **Granite** (current) | 173,719 chunks, 512-token, Granite Small 384-dim | `kb-serve-staff`, `kb-serve-developer` |
+| MiniLM (previous) | 53,614 chunks over 9,210 docs | `index/`, `index_developer/` — rollback |
+| Pallas `kb.json` | 48,195 docs, 891 endpoints, 828 views, 16,183 columns | `pallas-kb/` |
 
-**Pallas got the current corpus.** 1,943 documents dated 2026-04-13 → 49,076
-dated today. Built by `athena_knowledge_base/build_pallas_kb.py`, which
-reconstructs documents from the Granite serving index and preserves the Data
-View schema entities (828 views, 16,183 columns, 1,299 relationships) from the
-existing kb.json — that ingestion was fine and nothing here improves it.
+Source corpora, ~270 MB and the irreplaceable part, live in
+`D:\athena_knowledge_base`: `docs_success_coveo/` (41,346),
+`docs_devportal_raw/` (762), `docs_dataview/` (881), `docs_fhir_r4/` (845),
+`dataview_schema/` (CSV exports), plus O-help HTML in `athena_agent/docs/`.
 
-| docType | Count |
-|---|---:|
-| best_practice | 37,378 |
-| **error_pattern** | **3,557** |
-| fhir | 2,358 |
-| user_guide | 2,292 |
-| api_endpoint | 2,052 |
-| schema_reference | 880 |
-| release_note | 559 |
+### Models
 
-`error_pattern` is documents carrying a workaround — classified across the whole
-document rather than its first chunk, which had found 7 in a corpus holding
-5,845 workarounds because a document's first chunk is its summary.
-
-**Deployment**: `kb.json` uploaded to `athena-kb/pallas-kb/`, mounted on
-`pallas-mcp-server` at `/mnt/pallas-kb`, with
-`PALLAS_KB_PATH=/mnt/pallas-kb/pallas-kb`.
-
----
-
-## Two corpus defects found, fixed for Pallas only
-
-Both are still present in the **live web agent's** corpus. They do not break it —
-it passes real passages to Claude — but part of its index is noise that can be
-retrieved.
-
-**Navigation chrome survived the O-help parser.** It stripped by exact
-whole-line match, and `merge_prose` had already joined those lines into
-paragraphs. It sits at the head of many documents, which is where snippets come
-from: a search for "create a patient endpoint" returned *"Quick Links Tips and
-Tricks for Searching and Printing O-help Content"* as its best evidence.
-
-**14,115 chunks (8%) are verbatim duplicates** appearing five or more times:
-
-| Count | Text |
-|---:|---|
-| ×2,191 | `Tell the customer:\n\nCustomer Notes:\nCustomer Details:` |
-| ×2,186 | The O-help navigation block |
-| ×2,077 | `null\n\nReferences\nPrerequisites:\n\nReferences:` |
-| ×893 | `We're pleased to announce that this issue has been resolved…` |
-
-Suppressed by repetition rather than a phrase list — text repeated identically
-across thousands of documents is boilerplate by definition. 2,180 documents are
-entirely boilerplate ("Classification Details" support-routing articles sharing
-one 961-character body, differing only by title); those keep their title and
-lose their body.
-
-**To fix the agent's corpus** the same cleaning has to move into
-`parse_ohelp_chunks.py` and `finalize_chunks_granite.py`, then the pipeline
-re-runs: finalize (~30 min), embed (~36 min), serving indexes and BM25 (~10
-min), upload (~5 min). Roughly 1.5 hours, and the eval should be re-run against
-`granite_hybrid` afterwards to confirm it improved rather than assumed.
+| Role | Model |
+|---|---|
+| Embedding | `ibm-granite/granite-embedding-small-english-r2` — 384-dim, 512-token cap |
+| Generation | `claude-sonnet-4-5-20250929` |
+| Legacy embedding | `all-MiniLM-L6-v2` — baseline, retained |
+| Reranker | `ibm-granite/granite-embedding-reranker-english-r2` — built, measured, **not deployed** |
 
 ---
 
-## Remaining Pallas work
+## Documentation
 
-1. **Rotate the key** (above)
-2. **Retire the VS Code fork.** It bundles `mcp-server` v0.1.0 with 6 tools and
-   stdio only; this repository has v0.2.0 with 12 tools and http/sse. That
-   divergence is why the `undefined:` Data View bug exists in one and not the
-   other. The VS Code extension should consume the published package
-3. **Remove the tools' editorial layer.** `documentExcerpts` pre-joins three
-   documents truncated at 600 characters; `integrationGuidance` is three
-   hard-coded strings identical for every query. Both decide the answer before
-   the agent sees anything. `sources[]` is already the right shape and stays;
-   add `chunk_id` so the agent can fetch
-4. **One telemetry destination.** Three exist: a Cloudflare Worker
-   (`pallas-telemetry.nameappliedfor.workers.dev`, configured on the deployed
-   server), `func-athena-feedback` on Azure, and `func-athena-feedback-8291`
-   which was deleted 2026-08-08 and is still the extension default
-5. **Publish 0.2.0** if the learning loop is unreleased — npm has 0.1.1, local
-   packages are 0.2.0
-6. **Fill `skills/`** — the directory exists and is empty
-7. **Sites** — demo (`pallas_agent/templates/pallas.html`), analytics
-   (`athena_agent/templates/analytics.html`), and both marketplace listings
+| Document | Where | Covers |
+|---|---|---|
+| `README.md` | `athena-kb-agents` | Architecture, models, how they were tested |
+| `HISTORY.md` | `athena-kb-agents` | How it got here, and seven claims made before measuring that were wrong |
+| `DATA.md` | `athena-kb-agents` | Every source, provenance, transformation |
+| `INVENTORY.md` | `athena-kb-agents` | Directories, orphans, ~5.7 GB reclaimable |
+| `FUTURE_WORK.md` | `athena-kb-agents` | Deferred work, candidate models, fine-tuning |
+| `OPERATIONS.md` | `athena-kb-agents` | Refresh, deploy, rollback, traps |
+| `PALLAS_INVENTORY.md` | `pallas_claude_extension` | What already existed before planning against it |
+| `DEPLOY_RUNBOOK.md` | `pallas_claude_extension` | Phases 1–2 now **done**; phase 3 outstanding |
+| `PALLAS_PLAN.md` | `pallas_vscode_extension` | Corpus, tools, capture, sites |
 
 ---
 
-## Things that cost time today, worth not repeating
+## Next: the VS Code extension
 
-**Three path bugs, all the same mistake.** `/tmp/pallas_test_kb` — Node on
-Windows cannot resolve Git Bash's `/tmp`, so a local test read the *old bundled*
-kb.json for several rounds while a data problem was chased that did not exist.
-`/mnt/pallas-kb` — the mount is the share root, so the file was one directory
-deeper than assumed. And `PALLAS_KB_PATH` on the server was already
-`C:/Program Files/Git/home/site/wwwroot/data`, mangled by Git Bash before today.
+The only substantial piece left. Three things to decide **before** code:
 
-The rule in `OPERATIONS.md` — set Azure paths from PowerShell, and read back
-rather than trusting the exit code — applies to test harnesses too.
+**1. Auth on `pallas-mcp-server`.** There is none. It was called anonymously
+from a script tonight and returned athenahealth's login-gated documentation. A
+shared key in extension settings is cheap; per-user tokens are correct. This
+gates everything else.
 
-**Planning against an estate that was never surveyed.** An evening was spent
-designing a hosted MCP server, a delivery mechanism, solution capture, a review
-workflow and a provenance model. All five existed, deployed, published to npm
-and listed in the MCP registry since April. The survey had started from the VS
-Code extension because that is where the bad output appeared, and that is the
-older fork. See `PALLAS_INVENTORY.md`.
+**2. Bundle or remote.** Bundle `pallas-athena-tools@0.2.0` (smaller change,
+still needs a local KB), or point at the hosted SSE server (larger, deletes the
+local KB, the `buildKb` command and three settings — and corpus updates then
+reach users without a Marketplace release). Remote is the architecture already
+chosen and deployed.
+
+**3. Marketplace access to `AetherForgeus`.** Needs a PAT with publish scope
+from Azure DevOps. Confirm it still works before doing the work.
+
+Then, regardless: `feedbackEndpointUrl` still defaults to
+`func-athena-feedback-8291`, deleted 2026-08-08 — live is
+`func-athena-feedback.azurewebsites.net/api/feedback`. Version bump. New
+screenshots, because the current ones show the `undefined:` output that has
+since been fixed.
+
+## Also outstanding
+
+- **Pallas has no eval.** Nothing shipped today was measured — every change is
+  justified by argument. The agent has 42 questions precisely because asserting
+  improvement kept going wrong. Pallas should get the same.
+- **Demo and analytics sites** — `pallas_agent/templates/pallas.html` and
+  `athena_agent/templates/analytics.html` exist, neither deployed for Pallas.
+- **Three telemetry destinations** — a Cloudflare Worker on the deployed server,
+  `func-athena-feedback`, and the deleted one still set as the extension
+  default.
+- **Publish 0.2.0** to npm and the MCP registry; local is ahead.
+- **`skills/`** is empty.
+- **`/api/support`** uses `faqSections` rather than `body`; the parser skips it.
+- **The agent's corpus** carries surviving nav chrome and 14,115 duplicate
+  chunks, both cleaned for Pallas only. Deliberately not fixed — it answers
+  well, and the next change to it is the embedding and reranker rework.
+- **~5.7 GB reclaimable** locally, listed in `INVENTORY.md`.
+
+## Traps that cost time today
+
+**Compare identifiers, not strings.** Four separate "missing content" alarms
+were the same content under a different name — alias URLs versus canonical URLs,
+percent-encoded versus not.
+
+**Git Bash rewrites Linux paths.** `/mnt/...` becomes
+`C:/Program Files/Git/mnt/...`. Set Azure paths from PowerShell and read back.
+
+**Node cannot resolve Git Bash paths.** A test harness using `/tmp/...` silently
+read a stale file for several rounds while a data problem was chased that did
+not exist.
+
+**A mount is the share root.** `--mount-path /mnt/pallas-kb --share-name athena-kb`
+puts the share there, so the file is at `/mnt/pallas-kb/pallas-kb/kb.json`.
+
+**Survey before planning.** An evening was spent designing a hosted MCP server,
+a delivery mechanism, solution capture, a review workflow and a provenance
+model. All five already existed and were deployed.
